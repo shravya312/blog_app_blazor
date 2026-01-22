@@ -1,0 +1,145 @@
+@page "/create-post"
+@using System.ComponentModel.DataAnnotations
+@inject ApiService ApiService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Create Post - Blog App</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="container mt-5">
+        <div class="alert alert-warning">
+            Please <a href="/login">login</a> to create a post.
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <h2>Create New Post</h2>
+        
+        <EditForm Model="@postModel" OnValidSubmit="@HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <div class="mb-3">
+                <label class="form-label">Title *</label>
+                <InputText @bind-Value="postModel.Title" class="form-control" />
+                <ValidationMessage For="@(() => postModel.Title)" />
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Slug</label>
+                <InputText @bind-Value="postModel.Slug" class="form-control" />
+                <small class="form-text text-muted">Leave empty to auto-generate from title</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Content *</label>
+                <InputTextArea @bind-Value="postModel.Content" class="form-control" rows="15" />
+                <ValidationMessage For="@(() => postModel.Content)" />
+                <small class="form-text text-muted">Markdown supported</small>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Excerpt</label>
+                <InputTextArea @bind-Value="postModel.Excerpt" class="form-control" rows="3" />
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Featured Image URL</label>
+                <InputText @bind-Value="postModel.FeaturedImageUrl" class="form-control" />
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Category</label>
+                <InputSelect @bind-Value="postModel.CategoryId" class="form-control">
+                    <option value="">Select a category</option>
+                    @if (categories != null)
+                    {
+                        @foreach (var category in categories)
+                        {
+                            <option value="@category.Id">@category.Name</option>
+                        }
+                    }
+                </InputSelect>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">Status</label>
+                <InputSelect @bind-Value="postModel.Status" class="form-control">
+                    <option value="Draft">Draft</option>
+                    <option value="Published">Published</option>
+                    <option value="Scheduled">Scheduled</option>
+                </InputSelect>
+            </div>
+            
+            <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                    @if (isLoading)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                    }
+                    Create Post
+                </button>
+            </div>
+        </EditForm>
+    </div>
+}
+
+@code {
+    private CreatePostModel postModel = new();
+    private List<CategoryDto>? categories;
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        categories = await ApiService.GetAsync<List<CategoryDto>>("api/categories");
+    }
+
+    private async Task HandleSubmit()
+    {
+        isLoading = true;
+        
+        try
+        {
+            var result = await ApiService.PostAsync<PostDto>("api/posts", new
+            {
+                postModel.Title,
+                postModel.Slug,
+                postModel.Content,
+                postModel.Excerpt,
+                postModel.FeaturedImageUrl,
+                Status = postModel.Status,
+                CategoryId = postModel.CategoryId > 0 ? postModel.CategoryId : (int?)null,
+                TagIds = new List<int>()
+            });
+            
+            if (result != null)
+            {
+                Navigation.NavigateTo($"/post/{result.Slug}");
+            }
+        }
+        catch
+        {
+            // Handle error
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private class CreatePostModel
+    {
+        [Required]
+        public string Title { get; set; } = string.Empty;
+        public string? Slug { get; set; }
+        [Required]
+        public string Content { get; set; } = string.Empty;
+        public string? Excerpt { get; set; }
+        public string? FeaturedImageUrl { get; set; }
+        public string Status { get; set; } = "Draft";
+        public int CategoryId { get; set; }
+    }
+}

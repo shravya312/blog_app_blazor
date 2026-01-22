@@ -1,0 +1,143 @@
+@page "/"
+@inject ApiService ApiService
+
+<PageTitle>Home - Blog App</PageTitle>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8">
+            <h1 class="mb-4">Latest Posts</h1>
+            
+            @if (isLoading)
+            {
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            }
+            else if (posts?.Items != null && posts.Items.Any())
+            {
+                @foreach (var post in posts.Items)
+                {
+                    <article class="card mb-4">
+                        @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
+                        {
+                            <img src="@post.FeaturedImageUrl" class="card-img-top" alt="@post.Title" style="max-height: 300px; object-fit: cover;">
+                        }
+                        <div class="card-body">
+                            <h2 class="card-title">
+                                <a href="/post/@post.Slug" class="text-decoration-none">@post.Title</a>
+                            </h2>
+                            @if (!string.IsNullOrEmpty(post.Excerpt))
+                            {
+                                <p class="card-text">@post.Excerpt</p>
+                            }
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    @if (post.Author != null)
+                                    {
+                                        <small class="text-muted">By @post.Author.Username</small>
+                                    }
+                                    @if (post.PublishedAt.HasValue)
+                                    {
+                                        <small class="text-muted ms-2">• @post.PublishedAt.Value.ToString("MMMM dd, yyyy")</small>
+                                    }
+                                    @if (post.ReadingTimeMinutes.HasValue)
+                                    {
+                                        <small class="text-muted ms-2">• @post.ReadingTimeMinutes min read</small>
+                                    }
+                                </div>
+                                <div>
+                                    <span class="badge bg-secondary me-2">@post.ViewCount views</span>
+                                    <span class="badge bg-primary me-2">@post.LikeCount likes</span>
+                                    <span class="badge bg-info">@post.CommentCount comments</span>
+                                </div>
+                            </div>
+                            @if (post.Tags.Any())
+                            {
+                                <div class="mt-2">
+                                    @foreach (var tag in post.Tags)
+                                    {
+                                        <a href="/tag/@tag.Slug" class="badge bg-light text-dark text-decoration-none me-1">@tag.Name</a>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </article>
+                }
+                
+                @if (posts.TotalPages > 1)
+                {
+                    <nav>
+                        <ul class="pagination justify-content-center">
+                            @for (int i = 1; i <= posts.TotalPages; i++)
+                            {
+                                <li class="page-item @(i == currentPage ? "active" : "")">
+                                    <a class="page-link" href="?page=@i">@i</a>
+                                </li>
+                            }
+                        </ul>
+                    </nav>
+                }
+            }
+            else
+            {
+                <p>No posts found.</p>
+            }
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Categories</h5>
+                </div>
+                <div class="card-body">
+                    @if (categories != null)
+                    {
+                        <ul class="list-unstyled">
+                            @foreach (var category in categories)
+                            {
+                                <li class="mb-2">
+                                    <a href="/category/@category.Slug" class="text-decoration-none">
+                                        @category.Name <span class="badge bg-secondary">@category.PostCount</span>
+                                    </a>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private PagedResult<PostSummaryDto>? posts;
+    private List<CategoryDto>? categories;
+    private bool isLoading = true;
+    private int currentPage = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPosts();
+        await LoadCategories();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadPosts();
+    }
+
+    private async Task LoadPosts()
+    {
+        isLoading = true;
+        posts = await ApiService.GetAsync<PagedResult<PostSummaryDto>>($"api/posts?page={currentPage}&pageSize=10");
+        isLoading = false;
+    }
+
+    private async Task LoadCategories()
+    {
+        categories = await ApiService.GetAsync<List<CategoryDto>>("api/categories");
+    }
+}

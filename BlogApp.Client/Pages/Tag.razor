@@ -1,0 +1,77 @@
+@page "/tag/{Slug}"
+@inject ApiService ApiService
+
+<PageTitle>@(tag?.Name ?? "Tag") - Blog App</PageTitle>
+
+<div class="container mt-4">
+    @if (tag != null)
+    {
+        <h1>#@tag.Name</h1>
+        <p class="text-muted">@tag.PostCount posts</p>
+        
+        <h3 class="mt-4">Posts</h3>
+        
+        @if (posts?.Items != null && posts.Items.Any())
+        {
+            @foreach (var post in posts.Items)
+            {
+                <article class="card mb-3">
+                    <div class="card-body">
+                        <h4 class="card-title">
+                            <a href="/post/@post.Slug" class="text-decoration-none">@post.Title</a>
+                        </h4>
+                        @if (!string.IsNullOrEmpty(post.Excerpt))
+                        {
+                            <p class="card-text">@post.Excerpt</p>
+                        }
+                        <small class="text-muted">
+                            @if (post.PublishedAt.HasValue)
+                            {
+                                <span>@post.PublishedAt.Value.ToString("MMMM dd, yyyy")</span>
+                            }
+                            @if (post.ReadingTimeMinutes.HasValue)
+                            {
+                                <span class="ms-2">• @post.ReadingTimeMinutes min read</span>
+                            }
+                        </small>
+                    </div>
+                </article>
+            }
+        }
+        else
+        {
+            <p>No posts with this tag yet.</p>
+        }
+    }
+    else
+    {
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    
+    private TagDto? tag;
+    private PagedResult<PostSummaryDto>? posts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadTag();
+        await LoadPosts();
+    }
+
+    private async Task LoadTag()
+    {
+        tag = await ApiService.GetAsync<TagDto>($"api/tags/slug/{Slug}");
+    }
+
+    private async Task LoadPosts()
+    {
+        posts = await ApiService.GetAsync<PagedResult<PostSummaryDto>>($"api/posts?tag={Slug}&pageSize=20");
+    }
+}

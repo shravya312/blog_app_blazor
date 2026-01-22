@@ -1,0 +1,174 @@
+@page "/post/{Slug}"
+@inject ApiService ApiService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>@(post?.Title ?? "Post") - Blog App</PageTitle>
+
+@if (post == null)
+{
+    <div class="container mt-5">
+        <div class="text-center">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <article>
+            <h1>@post.Title</h1>
+            
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    @if (post.Author != null)
+                    {
+                        <span>By <strong>@post.Author.Username</strong></span>
+                    }
+                    @if (post.PublishedAt.HasValue)
+                    {
+                        <span class="ms-2">• @post.PublishedAt.Value.ToString("MMMM dd, yyyy")</span>
+                    }
+                    @if (post.ReadingTimeMinutes.HasValue)
+                    {
+                        <span class="ms-2">• @post.ReadingTimeMinutes min read</span>
+                    }
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary" @onclick="ToggleLike" disabled="@(!AuthService.IsAuthenticated)">
+                        @if (post.IsLiked)
+                        {
+                            <span>❤️</span>
+                        }
+                        else
+                        {
+                            <span>🤍</span>
+                        }
+                        @post.LikeCount
+                    </button>
+                </div>
+            </div>
+            
+            @if (!string.IsNullOrEmpty(post.FeaturedImageUrl))
+            {
+                <img src="@post.FeaturedImageUrl" class="img-fluid mb-4" alt="@post.Title">
+            }
+            
+            <div class="post-content">
+                @((MarkupString)RenderMarkdown(post.Content))
+            </div>
+            
+            @if (post.Tags.Any())
+            {
+                <div class="mt-4">
+                    <strong>Tags:</strong>
+                    @foreach (var tag in post.Tags)
+                    {
+                        <a href="/tag/@tag.Slug" class="badge bg-light text-dark text-decoration-none me-1">@tag.Name</a>
+                    }
+                </div>
+            }
+            
+            <div class="mt-5">
+                <h3>Comments (@post.CommentCount)</h3>
+                @if (AuthService.IsAuthenticated)
+                {
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <textarea @bind="newComment" class="form-control mb-2" rows="3" placeholder="Write a comment..."></textarea>
+                            <button class="btn btn-primary" @onclick="SubmitComment">Submit Comment</button>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <p><a href="/login">Login</a> to post a comment.</p>
+                }
+                
+                @if (comments != null)
+                {
+                    @foreach (var comment in comments)
+                    {
+                        <div class="card mb-2">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <strong>@comment.Author?.Username</strong>
+                                    <small class="text-muted">@comment.CreatedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                                </div>
+                                <p class="mt-2">@comment.Content</p>
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </article>
+    </div>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    
+    private PostDto? post;
+    private List<CommentDto>? comments;
+    private string newComment = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPost();
+        await LoadComments();
+    }
+
+    private async Task LoadPost()
+    {
+        post = await ApiService.GetAsync<PostDto>($"api/posts/slug/{Slug}");
+    }
+
+    private async Task LoadComments()
+    {
+        if (post != null)
+        {
+            comments = await ApiService.GetAsync<List<CommentDto>>($"api/comments/post/{post.Id}");
+        }
+    }
+
+    private async Task ToggleLike()
+    {
+        if (post != null && AuthService.IsAuthenticated)
+        {
+            var result = await ApiService.PostAsync<object>($"api/likes/post/{post.Id}", new { });
+            await LoadPost();
+        }
+    }
+
+    private async Task SubmitComment()
+    {
+        if (post != null && !string.IsNullOrEmpty(newComment) && AuthService.IsAuthenticated)
+        {
+            await ApiService.PostAsync<CommentDto>($"api/comments", new
+            {
+                Content = newComment,
+                PostId = post.Id
+            });
+            newComment = string.Empty;
+            await LoadComments();
+            await LoadPost();
+        }
+    }
+
+    private string RenderMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return string.Empty;
+            
+        // Simple markdown rendering - in production, use Markdig library
+        var html = markdown
+            .Replace("\n\n", "</p><p>")
+            .Replace("\n", "<br/>")
+            .Replace("**", "<strong>")
+            .Replace("*", "<em>");
+            
+        return $"<p>{html}</p>";
+    }
+}

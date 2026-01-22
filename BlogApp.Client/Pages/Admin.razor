@@ -1,0 +1,71 @@
+@page "/admin"
+@inject ApiService ApiService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Admin Dashboard - Blog App</PageTitle>
+
+@if (!AuthService.IsAuthenticated || (AuthService.CurrentUser?.Role != "Admin" && AuthService.CurrentUser?.Role != "Editor"))
+{
+    <div class="container mt-5">
+        <div class="alert alert-danger">
+            Access denied. Admin or Editor role required.
+        </div>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <h2>Admin Dashboard</h2>
+        
+        @if (analytics != null)
+        {
+            <div class="row mt-4">
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Posts</h5>
+                            <h3>@analytics.TotalPosts</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Published</h5>
+                            <h3>@analytics.PublishedPosts</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Total Users</h5>
+                            <h3>@analytics.TotalUsers</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Pending Comments</h5>
+                            <h3>@analytics.PendingComments</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private AnalyticsDto? analytics;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.IsAuthenticated && (AuthService.CurrentUser?.Role == "Admin" || AuthService.CurrentUser?.Role == "Editor"))
+        {
+            analytics = await ApiService.GetAsync<AnalyticsDto>("api/admin/analytics");
+        }
+    }
+}

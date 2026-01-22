@@ -1,0 +1,68 @@
+@page "/search"
+@inject ApiService ApiService
+
+<PageTitle>Search - Blog App</PageTitle>
+
+<div class="container mt-4">
+    <h1>Search</h1>
+    
+    <div class="mb-4">
+        <input @bind="searchQuery" @bind:event="oninput" @onkeypress="HandleKeyPress" 
+               class="form-control" placeholder="Search posts..." />
+        <button class="btn btn-primary mt-2" @onclick="PerformSearch">Search</button>
+    </div>
+    
+    @if (!string.IsNullOrEmpty(searchQuery) && posts != null)
+    {
+        <h3>Results (@posts.TotalCount)</h3>
+        
+        @if (posts.Items != null && posts.Items.Any())
+        {
+            @foreach (var post in posts.Items)
+            {
+                <article class="card mb-3">
+                    <div class="card-body">
+                        <h4 class="card-title">
+                            <a href="/post/@post.Slug" class="text-decoration-none">@post.Title</a>
+                        </h4>
+                        @if (!string.IsNullOrEmpty(post.Excerpt))
+                        {
+                            <p class="card-text">@post.Excerpt</p>
+                        }
+                        <small class="text-muted">
+                            @if (post.PublishedAt.HasValue)
+                            {
+                                <span>@post.PublishedAt.Value.ToString("MMMM dd, yyyy")</span>
+                            }
+                        </small>
+                    </div>
+                </article>
+            }
+        }
+        else
+        {
+            <p>No results found.</p>
+        }
+    }
+</div>
+
+@code {
+    private string searchQuery = string.Empty;
+    private PagedResult<PostSummaryDto>? posts;
+
+    private async Task PerformSearch()
+    {
+        if (!string.IsNullOrEmpty(searchQuery))
+        {
+            posts = await ApiService.GetAsync<PagedResult<PostSummaryDto>>($"api/posts?search={Uri.EscapeDataString(searchQuery)}");
+        }
+    }
+
+    private async Task HandleKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await PerformSearch();
+        }
+    }
+}

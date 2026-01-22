@@ -1,0 +1,131 @@
+@page "/register"
+@using System.ComponentModel.DataAnnotations
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Register - Blog App</PageTitle>
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="card-title text-center mb-4">Register</h2>
+                    
+                    @if (!string.IsNullOrEmpty(errorMessage))
+                    {
+                        <div class="alert alert-danger">@errorMessage</div>
+                    }
+                    
+                    @if (!string.IsNullOrEmpty(successMessage))
+                    {
+                        <div class="alert alert-success">@successMessage</div>
+                    }
+                    
+                    <EditForm Model="@registerModel" OnValidSubmit="@HandleRegister">
+                        <DataAnnotationsValidator />
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Username</label>
+                            <InputText @bind-Value="registerModel.Username" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.Username)" />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <InputText @bind-Value="registerModel.Email" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.Email)" />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Password</label>
+                            <InputText type="password" @bind-Value="registerModel.Password" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.Password)" />
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Confirm Password</label>
+                            <InputText type="password" @bind-Value="registerModel.ConfirmPassword" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                                @if (isLoading)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2"></span>
+                                }
+                                Register
+                            </button>
+                        </div>
+                    </EditForm>
+                    
+                    <div class="text-center mt-3">
+                        <a href="/login">Already have an account? Login</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private RegisterModel registerModel = new();
+    private string? errorMessage;
+    private string? successMessage;
+    private bool isLoading = false;
+
+    private async Task HandleRegister()
+    {
+        if (registerModel.Password != registerModel.ConfirmPassword)
+        {
+            errorMessage = "Passwords do not match";
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+        
+        try
+        {
+            var success = await AuthService.SignUpAsync(registerModel.Email, registerModel.Password, registerModel.Username);
+            if (success)
+            {
+                successMessage = "Registration successful! Please check your email to verify your account.";
+                await Task.Delay(2000);
+                Navigation.NavigateTo("/login");
+            }
+            else
+            {
+                errorMessage = "Registration failed. Please try again.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private class RegisterModel
+    {
+        [Required]
+        [MinLength(3)]
+        public string Username { get; set; } = string.Empty;
+        
+        [Required]
+        [EmailAddress]
+        public string Email { get; set; } = string.Empty;
+        
+        [Required]
+        [MinLength(6)]
+        public string Password { get; set; } = string.Empty;
+        
+        [Required]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

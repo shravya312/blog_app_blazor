@@ -1,0 +1,126 @@
+@page "/profile"
+@using System.ComponentModel.DataAnnotations
+@inject ApiService ApiService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>Profile - Blog App</PageTitle>
+
+@if (!AuthService.IsAuthenticated)
+{
+    <div class="container mt-5">
+        <div class="alert alert-warning">
+            Please <a href="/login">login</a> to view your profile.
+        </div>
+    </div>
+}
+else if (AuthService.CurrentUser != null)
+{
+    <div class="container mt-4">
+        <h2>My Profile</h2>
+        
+        <div class="card mt-4">
+            <div class="card-body">
+                <EditForm Model="@profileModel" OnValidSubmit="@HandleUpdate">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <InputText @bind-Value="profileModel.Username" class="form-control" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Avatar URL</label>
+                        <InputText @bind-Value="profileModel.AvatarUrl" class="form-control" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Bio</label>
+                        <InputTextArea @bind-Value="profileModel.Bio" class="form-control" rows="4" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Website</label>
+                        <InputText @bind-Value="profileModel.Website" class="form-control" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Twitter</label>
+                        <InputText @bind-Value="profileModel.Twitter" class="form-control" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">LinkedIn</label>
+                        <InputText @bind-Value="profileModel.LinkedIn" class="form-control" />
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">GitHub</label>
+                        <InputText @bind-Value="profileModel.GitHub" class="form-control" />
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" disabled="@isLoading">
+                        @if (isLoading)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                        }
+                        Update Profile
+                    </button>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private UpdateProfileModel profileModel = new();
+    private bool isLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthService.CurrentUser != null)
+        {
+            profileModel.Username = AuthService.CurrentUser.Username ?? string.Empty;
+            profileModel.AvatarUrl = AuthService.CurrentUser.AvatarUrl ?? string.Empty;
+            profileModel.Bio = AuthService.CurrentUser.Bio ?? string.Empty;
+            profileModel.Website = AuthService.CurrentUser.Website ?? string.Empty;
+            profileModel.Twitter = AuthService.CurrentUser.Twitter ?? string.Empty;
+            profileModel.LinkedIn = AuthService.CurrentUser.LinkedIn ?? string.Empty;
+            profileModel.GitHub = AuthService.CurrentUser.GitHub ?? string.Empty;
+        }
+    }
+
+    private async Task HandleUpdate()
+    {
+        isLoading = true;
+        
+        try
+        {
+            var result = await ApiService.PutAsync<UserDto>("api/users/profile", profileModel);
+            if (result != null)
+            {
+                // Refresh user data
+                await AuthService.InitializeAsync();
+            }
+        }
+        catch
+        {
+            // Handle error
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private class UpdateProfileModel
+    {
+        public string? Username { get; set; }
+        public string? AvatarUrl { get; set; }
+        public string? Bio { get; set; }
+        public string? Website { get; set; }
+        public string? Twitter { get; set; }
+        public string? LinkedIn { get; set; }
+        public string? GitHub { get; set; }
+    }
+}
