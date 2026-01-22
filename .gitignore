@@ -314,3 +314,7 @@ Thumbs.db
 ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
+
+# Local setup files folder (keep locally, don't track in Git)
+_local/
+*SETUP*.md
